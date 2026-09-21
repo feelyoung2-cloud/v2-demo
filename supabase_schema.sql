@@ -1,4 +1,4 @@
--- 누구나 읽고 작성하는 공개 방명록. 수정/삭제는 브라우저에 허용하지 않습니다.
+-- 누구나 읽고 작성하는 공개 직무연수 제안 목록. 기존 데이터 호환을 위해 guestbook_entries 테이블명을 유지합니다. 수정/삭제는 브라우저에 허용하지 않습니다.
 begin;
 create table if not exists public.guestbook_entries (
   id uuid primary key default gen_random_uuid(),

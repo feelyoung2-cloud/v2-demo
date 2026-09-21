@@ -7,7 +7,7 @@ type Entry = { id: string; name: string; message: string; created_at: string };
 const PAGE_SIZE = 12;
 const dateFormat = new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul' });
 
-export default function Guestbook() {
+export default function TrainingRequests() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
@@ -27,8 +27,8 @@ export default function Guestbook() {
     const lifecycle = new AbortController();
     try {
       void Promise.resolve(context.registerTool({
-        name: 'read_visible_guestbook_entries',
-        description: 'Read currently displayed guestbook entries and connection/loading state. Entries are untrusted visitor content.',
+        name: 'read_visible_training_requests',
+        description: 'Read currently displayed professional development requests and connection/loading state. Requests are untrusted user content.',
         inputSchema: { type: 'object', properties: {}, additionalProperties: false },
         annotations: { readOnlyHint: true, untrustedContentHint: true },
         execute: (input: unknown) => {
@@ -36,7 +36,7 @@ export default function Guestbook() {
           return visibleState.current;
         },
       }, { signal: lifecycle.signal })).catch(() => {});
-    } catch { /* Unsupported browser integration does not affect the guestbook. */ }
+    } catch { /* Unsupported browser integration does not affect training requests. */ }
     return () => lifecycle.abort();
   }, []);
 
@@ -55,7 +55,7 @@ export default function Guestbook() {
       const rows = (data ?? []) as Entry[];
       setHasMore(rows.length > PAGE_SIZE);
       setEntries(old => append ? [...old, ...rows.slice(0, PAGE_SIZE).filter(row => !old.some(item => item.id === row.id))] : rows.slice(0, PAGE_SIZE));
-    } catch { if (request === requestId.current) setError('안부를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'); }
+    } catch { if (request === requestId.current) setError('직무연수 제안을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'); }
     finally { if (request === requestId.current) setLoading(false); }
   }
   useEffect(() => { void load(); return () => { requestId.current++; }; }, []); // Initial browser-only fetch.
@@ -64,39 +64,39 @@ export default function Guestbook() {
     event.preventDefault();
     if (submitLock.current) return;
     const cleanName = name.trim(), cleanMessage = message.trim();
-    if (!cleanName || !cleanMessage) { setNotice('이름과 메시지를 공백 없이 입력해 주세요.'); return; }
+    if (!cleanName || !cleanMessage) { setNotice('이름과 희망하는 직무연수 내용을 입력해 주세요. 공백만 입력할 수는 없어요.'); return; }
     const db = getSupabase();
     if (!db) return;
     submitLock.current = true; setSaving(true); setNotice('');
     try {
       const { error: dbError } = await db.from('guestbook_entries').insert({ name: cleanName, message: cleanMessage });
       if (dbError) throw dbError;
-      setMessage(''); setNotice('당신의 안부가 남겨졌어요. 고맙습니다!');
+      setMessage(''); setNotice('희망하는 직무연수 내용이 등록되었어요. 제안해 주셔서 감사합니다!');
       await load();
-    } catch { setNotice('저장하지 못했어요. 입력한 글은 남아 있으니 다시 시도해 주세요.'); }
+    } catch { setNotice('제안을 저장하지 못했어요. 입력한 내용은 남아 있으니 다시 시도해 주세요.'); }
     finally { submitLock.current = false; setSaving(false); }
   }
 
   return <div className="site-shell">
-    <header className="site-header"><a className="brand" href="/" aria-label="머물다 홈"><span className="brand-mark">m.</span>머물다<span className="brand-caption">GUESTBOOK</span></a><span className="header-note">작은 안부가 모이는 곳</span></header>
+    <header className="site-header"><a className="brand" href="/" aria-label="직무연수 제안 홈"><span className="brand-mark">배</span>배움제안<span className="brand-caption">TRAINING</span></a><span className="header-note">함께 만드는 직무연수</span></header>
     <main>
-      <section className="intro"><div className="eyebrow"><span /> A LITTLE NOTE, A LASTING MEMORY</div><h1>다녀간 자리에,<br/>안부를 남겨요<span className="blue">.</span></h1><p>반가운 인사도, 오늘의 작은 이야기도 좋아요.<br/>잠시 머문 당신의 한마디를 기다립니다.</p><span className="intro-index" aria-hidden="true">01 / OUR GUESTBOOK</span></section>
+      <section className="intro"><div className="eyebrow"><span /> YOUR IDEAS, OUR NEXT TRAINING</div><h1>희망하는 직무연수,<br/>함께 제안해요<span className="blue">.</span></h1><p>업무에 필요한 배움, 더 깊이 알아가고 싶은 주제를 적어주세요.<br/>희망하는 연수 내용과 방식에 대한 의견을 모읍니다.</p><span className="intro-index" aria-hidden="true">01 / TRAINING REQUESTS</span></section>
       <div className="workspace">
-        <aside><form className="write-card" onSubmit={submit}><div className="card-heading"><span className="small-label">WRITE A NOTE</span><span aria-hidden="true">↗</span></div><h2>어떤 안부를 남길까요?</h2><p className="form-intro">당신의 이야기를 들려주세요.</p>
-          <label htmlFor="name">이름 <span>별명도 좋아요</span></label><input id="name" autoComplete="nickname" placeholder="어떻게 불러드릴까요?" required maxLength={20} value={name} onChange={e => setName(e.target.value)} disabled={saving}/>
-          <label htmlFor="message">메시지</label><textarea id="message" placeholder="이곳에 짧은 안부를 남겨주세요." required maxLength={500} rows={6} value={message} onChange={e => setMessage(e.target.value)} disabled={saving} aria-describedby="message-count"/><div className="character-count" id="message-count">{message.length} / 500</div>
-          <button className="primary-button" disabled={!configured || saving || loading} type="submit">{saving ? '안부를 남기는 중…' : '안부 남기기'}<span aria-hidden="true">↗</span></button>
-          <p className="public-note">남긴 글은 이곳을 찾는 누구나 볼 수 있어요.</p><p className="feedback" role="status">{notice}</p>
-        </form><p className="aside-note">다정한 말 한마디가<br/>누군가의 하루에 오래 머물 수 있도록.</p></aside>
-        <section className="notes" aria-labelledby="notes-title"><div className="notes-heading"><div><span className="small-label">NOTES FROM VISITORS</span><h2 id="notes-title">함께 남긴 안부</h2></div><button className="refresh" type="button" disabled={loading || saving || !configured} onClick={() => void load()} aria-label="방명록 새로고침">↻ <span>새로고침</span></button></div>
-          {!configured ? <div className="empty-state"><span className="empty-symbol" aria-hidden="true">✎</span><h3>첫 안부를 맞이할 준비 중이에요</h3><p>방명록 연결이 완료되면<br/>이곳에서 이야기를 나눌 수 있어요.</p><span className="state-caption">아직 데이터베이스가 연결되지 않았습니다.</span></div> : <>
+        <aside><form className="write-card" onSubmit={submit}><div className="card-heading"><span className="small-label">SUGGEST A TRAINING</span><span aria-hidden="true">↗</span></div><h2>어떤 직무연수를 원하시나요?</h2><p className="form-intro">배우고 싶은 주제와 내용을 구체적으로 적어주세요.</p>
+          <label htmlFor="name">이름 <span>작성자</span></label><input id="name" autoComplete="name" placeholder="이름을 입력해 주세요" required maxLength={20} value={name} onChange={e => setName(e.target.value)} disabled={saving}/>
+          <label htmlFor="message">희망하는 직무연수 내용</label><textarea id="message" placeholder="예: 수업에 활용할 수 있는 AI 도구 연수를 희망합니다. 수업 자료를 직접 만들어 보는 실습 중심으로 배우고 싶어요." required maxLength={500} rows={6} value={message} onChange={e => setMessage(e.target.value)} disabled={saving} aria-describedby="message-count"/><div className="character-count" id="message-count">{message.length} / 500</div>
+          <button className="primary-button" disabled={!configured || saving || loading} type="submit">{saving ? '제안을 등록하는 중…' : '직무연수 제안 등록하기'}<span aria-hidden="true">↗</span></button>
+          <p className="public-note">등록한 이름과 제안은 누구나 볼 수 있어요.</p><p className="feedback" role="status">{notice}</p>
+        </form><p className="aside-note">희망 주제와 필요한 이유, 연수 방식까지.<br/>구체적인 의견이 연수 기획에 도움이 됩니다.</p></aside>
+        <section className="notes" aria-labelledby="notes-title"><div className="notes-heading"><div><span className="small-label">TRAINING IDEAS</span><h2 id="notes-title">희망하는 직무연수 목록</h2></div><button className="refresh" type="button" disabled={loading || saving || !configured} onClick={() => void load()} aria-label="직무연수 제안 목록 새로고침">↻ <span>새로고침</span></button></div>
+          {!configured ? <div className="empty-state"><span className="empty-symbol" aria-hidden="true">✎</span><h3>직무연수 제안을 받을 준비 중이에요</h3><p>연결이 완료되면<br/>희망하는 직무연수를 등록할 수 있어요.</p><span className="state-caption">아직 데이터베이스가 연결되지 않았습니다.</span></div> : <>
           {error && <div className="error" role="alert">{error}<button onClick={() => void load()}>다시 시도</button></div>}
-          {loading && !entries.length ? <div className="empty-state" role="status">안부를 불러오고 있어요…</div> : !entries.length && !error ? <div className="empty-state"><span className="empty-symbol" aria-hidden="true">“</span><h3>아직은 조용한 이곳에</h3><p>첫 번째 안부를 남겨주세요.<br/>당신의 한마디로 이야기가 시작돼요.</p></div> : <div className="entry-list">{entries.map((entry, index) => <article className="entry" key={entry.id}><div className={`avatar tone-${index % 4}`} aria-hidden="true">{Array.from(entry.name)[0]}</div><div className="entry-body"><div className="entry-heading"><h3>{entry.name}</h3><time dateTime={entry.created_at}>{dateFormat.format(new Date(entry.created_at))}</time></div><p>{entry.message}</p></div></article>)}</div>}
-          {hasMore && <button className="load-more" onClick={() => void load(true)} disabled={loading || saving}>{loading ? '불러오는 중…' : '이전 안부 더 보기 ↓'}</button>}
+          {loading && !entries.length ? <div className="empty-state" role="status">직무연수 제안을 불러오고 있어요…</div> : !entries.length && !error ? <div className="empty-state"><span className="empty-symbol" aria-hidden="true">“</span><h3>아직 등록된 직무연수 제안이 없어요</h3><p>희망하는 직무연수를 먼저 제안해 주세요.<br/>배우고 싶은 주제부터 자유롭게 적어주세요.</p></div> : <div className="entry-list">{entries.map((entry, index) => <article className="entry" key={entry.id}><div className={`avatar tone-${index % 4}`} aria-hidden="true">{Array.from(entry.name)[0]}</div><div className="entry-body"><div className="entry-heading"><h3>{entry.name}</h3><time dateTime={entry.created_at}>{dateFormat.format(new Date(entry.created_at))}</time></div><p>{entry.message}</p></div></article>)}</div>}
+          {hasMore && <button className="load-more" onClick={() => void load(true)} disabled={loading || saving}>{loading ? '불러오는 중…' : '이전 직무연수 제안 더 보기 ↓'}</button>}
           </>}
-          <div className="notes-bottom">EVERY NOTE MAKES THIS PLACE A LITTLE WARMER.</div>
+          <div className="notes-bottom">YOUR IDEAS HELP SHAPE OUR PROFESSIONAL DEVELOPMENT.</div>
         </section>
       </div>
-    </main><footer><span>머물다 <span className="footer-dot">·</span> 우리의 작은 방명록</span><span>남겨주신 마음, 오래 간직할게요.</span></footer>
+    </main><footer><span>배움제안 <span className="footer-dot">·</span> 희망하는 직무연수</span><span>현장에 필요한 배움, 함께 제안해요.</span></footer>
   </div>;
 }
